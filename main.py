@@ -1,4 +1,43 @@
 """
+FastAPI 应用入口。
+
+说明：
+- 保留原有的领域逻辑（processors/services/database/config）
+- 通过 FastAPI 提供 HTTP 接口，便于与 Java DLP 系统或本地工具集成
+"""
+
+from __future__ import annotations
+
+from fastapi import FastAPI
+
+from src.api.routers import api_router
+from src.database import init_database
+
+
+def create_app() -> FastAPI:
+    """
+    创建并配置 FastAPI 应用实例。
+    """
+    app = FastAPI(
+        title="Text Fingerprint Service",
+        description="用于生成并管理文本类文档数字指纹的本地服务。",
+        version="1.0.0",
+    )
+
+    # 注册路由
+    app.include_router(api_router)
+
+    # 启动时初始化数据库（幂等）
+    @app.on_event("startup")
+    def _init_db_on_startup() -> None:
+        init_database()
+
+    return app
+
+
+app = create_app()
+
+"""
 项目入口文件（命令行接口 CLI）。
 
 功能：
