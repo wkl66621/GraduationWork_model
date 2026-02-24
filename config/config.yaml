@@ -13,8 +13,7 @@ database:
   host: "localhost"
   port: 3306
   user: "gw"
-  password: "569332"          # 开发环境建议使用本地低权限账号
+  password: "569332"
   db: "graduation_work"
-  url: "jdbc:mysql://localhost:3306/graduation_work"
-  driver-class-name: "com.mysql.cj.jdbc.Driver"
+  charset: "utf8mb4"
 

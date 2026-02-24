@@ -8,10 +8,19 @@ FastAPI 应用入口。
 
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from src.api.routers import api_router
 from src.database import init_database
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # 启动时初始化数据库（幂等）
+    init_database()
+    yield
+    # 关闭时的清理工作（如果需要）
 
 
 def create_app() -> FastAPI:
@@ -22,15 +31,11 @@ def create_app() -> FastAPI:
         title="Text Fingerprint Service",
         description="用于生成并管理文本类文档数字指纹的本地服务。",
         version="1.0.0",
+        lifespan=lifespan
     )
 
     # 注册路由
     app.include_router(api_router)
-
-    # 启动时初始化数据库（幂等）
-    @app.on_event("startup")
-    def _init_db_on_startup() -> None:
-        init_database()
 
     return app
 
@@ -45,8 +50,6 @@ app = create_app()
 - init-db: 初始化数据库表结构
 - ingest-file: 导入单个 txt 文件的数字指纹（文档级 + 分片级）
 """
-
-from __future__ import annotations
 
 import click
 
@@ -147,8 +150,6 @@ if __name__ == "__main__":
 
 后续会在此接入 Click 命令行接口。
 """
-
-from __future__ import annotations
 
 from src.config import settings
 from src.database import init_database
