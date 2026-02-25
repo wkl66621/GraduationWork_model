@@ -76,29 +76,29 @@ CREATE TABLE `digital_fingerprint_doc` (
 """
 
 
-def _execute_statements(statements: Iterable[str]) -> None:
-    from pymysql import OperationalError
+# def _execute_statements(statements: Iterable[str]) -> None:
+#     from pymysql import OperationalError
+#
+#     with get_connection() as conn:
+#         with conn.cursor() as cursor:
+#             for sql in statements:
+#                 try:
+#                     cursor.execute(sql)
+#                 except OperationalError as e:
+#                     # 这里简单抛出，后续可以接入日志系统
+#                     raise RuntimeError(f"执行建表语句失败: {e}") from e
 
-    with get_connection() as conn:
-        with conn.cursor() as cursor:
-            for sql in statements:
-                try:
-                    cursor.execute(sql)
-                except OperationalError as e:
-                    # 这里简单抛出，后续可以接入日志系统
-                    raise RuntimeError(f"执行建表语句失败: {e}") from e
 
-
-def init_database() -> None:
-    """
-    初始化数据库，创建需要的表。
-    在项目首次运行或部署时调用一次即可。
-    """
-    _execute_statements(
-        [
-            CREATE_TABLE_DOCUMENTS,
-            CREATE_TABLE_SEGMENTS,
-            CREATE_TABLE_FINGERPRINTS,
-        ]
-    )
+# def init_database() -> None:
+#     """
+#     初始化数据库，创建需要的表。
+#     在项目首次运行或部署时调用一次即可。
+#     """
+#     _execute_statements(
+#         [
+#             CREATE_TABLE_DOCUMENTS,
+#             CREATE_TABLE_SEGMENTS,
+#             CREATE_TABLE_FINGERPRINTS,
+#         ]
+#     )
 

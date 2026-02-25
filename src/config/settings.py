@@ -39,9 +39,9 @@ class PathsConfig:
 class DatabaseConfig:
     host: str = "localhost"
     port: int = 3306
-    user: str = "root"
-    password: str = ""
-    db: str = "text_fingerprint"
+    user: str = "gw"
+    password: str = "569332"
+    db: str = "graduation_work"
     charset: str = "utf8mb4"
 
 

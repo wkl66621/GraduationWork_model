@@ -12,13 +12,13 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from src.api.routers import api_router
-from src.database import init_database
+# from src.database import init_database
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # 启动时初始化数据库（幂等）
-    init_database()
+    # init_database()
     yield
     # 关闭时的清理工作（如果需要）
 
@@ -54,7 +54,7 @@ app = create_app()
 import click
 
 from src.config import settings
-from src.database import init_database
+# from src.database import init_database
 from src.services.fingerprint_service import ingest_text_file
 
 
@@ -81,9 +81,9 @@ def show_config() -> None:
 @cli.command("init-db")
 def init_db_cmd() -> None:
     """初始化数据库表结构（包括 digital_fingerprint_doc 等）。"""
-    click.echo("开始初始化数据库表结构...")
-    init_database()
-    click.echo("数据库初始化完成。")
+    # click.echo("开始初始化数据库表结构...")
+    # init_database()
+    # click.echo("数据库初始化完成。")
 
 
 @cli.command("ingest-file")
@@ -109,7 +109,7 @@ def init_db_cmd() -> None:
     type=click.IntRange(0, 3),
     default=0,
     show_default=True,
-    help="敏感等级（0-无，1-低，2-中，3-高）。",
+    help="敏感等级（0-公开，1-敏感，2-隐私，3-机密）。",
 )
 @click.option(
     "--max-sentence-length",
@@ -152,7 +152,7 @@ if __name__ == "__main__":
 """
 
 from src.config import settings
-from src.database import init_database
+# from src.database import init_database
 
 
 def main() -> None:
@@ -167,10 +167,10 @@ def main() -> None:
         f"数据库: mysql://{db_cfg.user}:***@{db_cfg.host}:{db_cfg.port}/{db_cfg.db}"
     )
 
-    # 初始化数据库表结构
-    print("开始初始化数据库表结构...")
-    init_database()
-    print("数据库初始化完成。")
+    # # 初始化数据库表结构
+    # print("开始初始化数据库表结构...")
+    # init_database()
+    # print("数据库初始化完成。")
 
 
 if __name__ == "__main__":
