@@ -21,6 +21,7 @@ from src.services.enterprise_dataset_service import (
     ingest_samples,
     register_attributes,
 )
+from src.services.risk_analysis_service import analyze_dataset_risk
 
 router = APIRouter(prefix="/api/v1/enterprise-data", tags=["enterprise-data"])
 
@@ -125,6 +126,39 @@ class BatchCreateExplicitEdgesRequest(BaseModel):
     edges: List[ExplicitEdgeItem]
 
 
+class AnalyzeImplicitRiskRequest(BaseModel):
+    sensitive_attr_code: constr(strip_whitespace=True, min_length=1, max_length=64)
+    candidate_attr_codes: Optional[List[constr(strip_whitespace=True, min_length=1, max_length=64)]] = (
+        None
+    )
+    pic_defaults: Optional[Dict[str, condecimal(ge=0, le=1, max_digits=8, decimal_places=6)]] = (
+        None
+    )
+    default_pic: condecimal(ge=0, le=1, max_digits=8, decimal_places=6) = 0.5
+    max_combination_size: conint(ge=1, le=6) = 3
+    sampling_times: conint(ge=1, le=2000) = 200
+    theta: condecimal(ge=0, le=1, max_digits=8, decimal_places=6) = 0.2
+
+
+class RiskComboResult(BaseModel):
+    combo_attrs: List[str]
+    sample_size: int
+    mutual_information: float
+    lr: float
+    pic: float
+    risk: float
+
+
+class AnalyzeImplicitRiskResponse(BaseModel):
+    dataset_code: str
+    dataset_id: int
+    calc_batch_id: str
+    risk_final: float
+    theta: float
+    is_high_risk: bool
+    top_results: List[RiskComboResult]
+
+
 @router.post(
     "/datasets",
     response_model=DatasetResponse,
@@ -224,3 +258,35 @@ def batch_create_explicit_edges(
             detail=f"写入显性关系边失败: {e}",
         ) from e
     return BatchCountResponse(success_count=count)
+
+
+@router.post(
+    "/datasets/{dataset_code}/analysis/implicit-risk",
+    response_model=AnalyzeImplicitRiskResponse,
+    summary="执行隐性关系与泄露风险分析",
+)
+def analyze_implicit_risk(
+    dataset_code: str, req: AnalyzeImplicitRiskRequest
+) -> AnalyzeImplicitRiskResponse:
+    try:
+        result = analyze_dataset_risk(
+            dataset_code=dataset_code,
+            sensitive_attr_code=req.sensitive_attr_code,
+            candidate_attr_codes=req.candidate_attr_codes,
+            pic_defaults=dict(req.pic_defaults) if req.pic_defaults else None,
+            default_pic=float(req.default_pic),
+            max_combination_size=req.max_combination_size,
+            sampling_times=req.sampling_times,
+            theta=float(req.theta),
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        ) from e
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"执行隐性关系分析失败: {e}",
+        ) from e
+    return AnalyzeImplicitRiskResponse(**result)

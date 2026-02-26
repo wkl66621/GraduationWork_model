@@ -15,6 +15,14 @@
 - 你可手工执行数据库脚本：`src/database/manual_schema.sql`。
 - SQL 常量也同步维护在：`src/database/init_db.py`。
 
+## 当前可用接口（企业数据底座）
+
+- `POST /api/v1/enterprise-data/datasets`：创建/更新企业数据集。
+- `POST /api/v1/enterprise-data/datasets/{dataset_code}/attributes/batch`：批量注册属性元数据。
+- `POST /api/v1/enterprise-data/datasets/{dataset_code}/samples/batch`：批量导入样本值。
+- `POST /api/v1/enterprise-data/datasets/{dataset_code}/kg/edges/explicit/batch`：写入显性关系边。
+- `POST /api/v1/enterprise-data/datasets/{dataset_code}/analysis/implicit-risk`：触发隐性关系与泄露风险计算（LR/PIC/Risk），并将结果写入隐性关系边表。
+
 建议执行方式（MySQL）：
 
 ```sql
