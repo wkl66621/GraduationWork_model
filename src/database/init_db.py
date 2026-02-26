@@ -244,8 +244,10 @@ ALL_CREATE_TABLE_SQL: List[str] = [
 
 
 def build_manual_init_sql() -> str:
-    """
-    生成完整建表 SQL 脚本文本（不执行）。
+    """生成手工初始化数据库所需 SQL 脚本。
+
+    Returns:
+        str: 按顺序拼接后的完整建表 SQL 文本。
     """
     return "\n\n".join(sql.strip() for sql in ALL_CREATE_TABLE_SQL) + "\n"
 

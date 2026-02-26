@@ -22,6 +22,7 @@ DEFAULT_CONFIG_PATH = PROJECT_ROOT / "config" / "config.yaml"
 
 @dataclass
 class AppConfig:
+    """应用级配置。"""
     name: str = "TextFingerprint"
     env: str = "dev"
     log_level: str = "INFO"
@@ -29,6 +30,7 @@ class AppConfig:
 
 @dataclass
 class PathsConfig:
+    """项目路径配置。"""
     base_dir: Path = PROJECT_ROOT
     input_dir: Path = PROJECT_ROOT / "data" / "input"
     output_dir: Path = PROJECT_ROOT / "data" / "output"
@@ -37,6 +39,7 @@ class PathsConfig:
 
 @dataclass
 class DatabaseConfig:
+    """数据库连接配置。"""
     host: str = "localhost"
     port: int = 3306
     user: str = "gw"
@@ -47,12 +50,21 @@ class DatabaseConfig:
 
 @dataclass
 class Settings:
+    """全局配置聚合对象。"""
     app: AppConfig
     paths: PathsConfig
     database: DatabaseConfig
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "Settings":
+        """从字典构建强类型配置对象。
+
+        Args:
+            data: 原始配置字典，通常来源于 YAML 文件。
+
+        Returns:
+            Settings: 组装后的配置对象。
+        """
         app_cfg = AppConfig(**data.get("app", {}))
 
         paths_raw = data.get("paths", {})
@@ -69,6 +81,17 @@ class Settings:
 
 
 def _load_yaml_config(path: Path) -> Dict[str, Any]:
+    """读取 YAML 配置文件并返回字典。
+
+    Args:
+        path: 配置文件路径。
+
+    Returns:
+        Dict[str, Any]: 配置字典；文件不存在时返回空字典。
+
+    Raises:
+        ValueError: YAML 顶层结构不是字典时抛出。
+    """
     if not path.exists():
         # 如果没有配置文件，返回空字典，使用默认值
         return {}
@@ -83,13 +106,18 @@ def _load_yaml_config(path: Path) -> Dict[str, Any]:
 
 
 def load_settings(config_path: Optional[str | Path] = None) -> Settings:
-    """
-    加载配置并返回 Settings 对象。
+    """加载并合成全局配置。
 
     加载顺序（优先级从低到高）：
-    1. 默认值（dataclass 中的默认字段）
-    2. YAML 配置文件
-    3. 环境变量覆盖（目前仅简单示例，可后续扩展）
+    1. dataclass 默认值
+    2. YAML 配置
+    3. 环境变量覆盖
+
+    Args:
+        config_path: 可选配置文件路径，未传时使用默认路径。
+
+    Returns:
+        Settings: 最终生效的配置对象。
     """
     final_path: Path = (
         Path(config_path).expanduser().resolve()

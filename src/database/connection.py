@@ -16,8 +16,10 @@ from src.config.database import get_pymysql_kwargs
 
 
 def create_connection() -> pymysql.connections.Connection:
-    """
-    创建一个新的数据库连接。
+    """创建数据库连接对象。
+
+    Returns:
+        pymysql.connections.Connection: 可执行 SQL 的连接实例。
     """
     kwargs = get_pymysql_kwargs()
     # 使用 DictCursor 便于后续以字典形式访问字段
@@ -27,8 +29,13 @@ def create_connection() -> pymysql.connections.Connection:
 
 @contextmanager
 def get_connection() -> Iterator[pymysql.connections.Connection]:
-    """
-    上下文管理形式获取连接，自动处理提交与关闭。
+    """以上下文管理器方式提供数据库连接。
+
+    Yields:
+        pymysql.connections.Connection: 当前代码块使用的数据库连接。
+
+    Raises:
+        Exception: 上下文内出现异常时回滚并继续抛出原异常。
     """
     conn = create_connection()
     try:

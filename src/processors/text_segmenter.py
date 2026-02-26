@@ -20,6 +20,14 @@ SENTENCE_DELIMITERS = r"[。！？!?；;]+"
 
 
 def _normalize_text(text: str) -> str:
+    """规范化换行并去除首尾空白。
+
+    Args:
+        text: 原始文本。
+
+    Returns:
+        str: 规范化后的文本。
+    """
     # 去掉两端空白，并规范换行
     return text.replace("\r\n", "\n").replace("\r", "\n").strip()
 
@@ -28,10 +36,14 @@ def split_sentences(
     text: str,
     max_length: int = 500,
 ) -> List[str]:
-    """
-    基础分句：
-    1. 先按中英文句号/问号/感叹号/分号切分
-    2. 对于单个句子超过 max_length 的，再按固定长度继续切分
+    """按标点进行基础分句，并控制句长上限。
+
+    Args:
+        text: 待分句文本。
+        max_length: 单句最大长度，超过后继续等长切分。
+
+    Returns:
+        List[str]: 清洗后句子列表。
     """
     norm = _normalize_text(text)
     if not norm:
@@ -57,8 +69,14 @@ def split_sentences(
 
 
 def _split_by_length(text: str, max_length: int) -> Iterable[str]:
-    """
-    将过长的句子按固定长度拆分，避免后续处理（如向量化）时过长。
+    """将超长句子按固定长度切分。
+
+    Args:
+        text: 待切分文本。
+        max_length: 单段最大长度。
+
+    Returns:
+        Iterable[str]: 切分后的文本片段序列。
     """
     if len(text) <= max_length:
         return [text]

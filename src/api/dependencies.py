@@ -19,19 +19,19 @@ from src.database.connection import get_connection
 
 
 def get_settings():
-    """
-    返回全局配置对象。
-    直接暴露 settings，便于在路由中读取数据库或路径配置。
+    """返回全局配置对象。
+
+    Returns:
+        Settings: 项目级配置单例，包含 app/paths/database 三类配置。
     """
     return settings
 
 
 def get_db_connection():
-    """
-    提供一个数据库连接的依赖。
+    """构造 FastAPI 数据库连接依赖。
 
-    注意：目前大部分写入都封装在 service 层中使用自己的 get_connection，
-    若要在接口层直接访问数据库，可使用该依赖。
+    Returns:
+        fastapi.Depends: 注入后可获得单次请求范围内的数据库连接。
     """
     from pymysql.connections import Connection
 

@@ -24,6 +24,7 @@ from src.database.connection import get_connection
 
 @dataclass
 class DatasetPayload:
+    """企业数据集写入载荷。"""
     dataset_code: str
     dataset_name: str
     domain_name: Optional[str] = None
@@ -33,6 +34,14 @@ class DatasetPayload:
 
 
 def _normalize_value(value: Any) -> Optional[str]:
+    """将属性值标准化为可持久化字符串。
+
+    Args:
+        value: 原始输入值，可能为 `None`、`datetime` 或其他类型。
+
+    Returns:
+        Optional[str]: 规范化字符串；输入为 `None` 时返回 `None`。
+    """
     if value is None:
         return None
     if isinstance(value, datetime):
@@ -41,6 +50,14 @@ def _normalize_value(value: Any) -> Optional[str]:
 
 
 def _fetch_dataset_by_code(dataset_code: str) -> Optional[dict]:
+    """按数据集编码查询数据集记录。
+
+    Args:
+        dataset_code: 数据集编码。
+
+    Returns:
+        Optional[dict]: 命中时返回数据集字典，否则返回 `None`。
+    """
     sql = """
     SELECT id, dataset_code, dataset_name, domain_name, source_system, description, status
     FROM enterprise_dataset
@@ -54,6 +71,17 @@ def _fetch_dataset_by_code(dataset_code: str) -> Optional[dict]:
 
 
 def create_or_update_dataset(payload: DatasetPayload) -> dict:
+    """创建或更新企业数据集。
+
+    Args:
+        payload: 数据集写入载荷。
+
+    Returns:
+        dict: 写入后回读的数据集信息。
+
+    Raises:
+        RuntimeError: 写入成功但回读失败时抛出。
+    """
     sql = """
     INSERT INTO enterprise_dataset (
         dataset_code,
@@ -102,6 +130,18 @@ def create_or_update_dataset(payload: DatasetPayload) -> dict:
 
 
 def register_attributes(dataset_code: str, attributes: List[dict]) -> int:
+    """为数据集批量注册属性元数据。
+
+    Args:
+        dataset_code: 数据集编码。
+        attributes: 属性字典列表。
+
+    Returns:
+        int: 成功处理的属性数量。
+
+    Raises:
+        ValueError: 数据集不存在时抛出。
+    """
     dataset = _fetch_dataset_by_code(dataset_code)
     if dataset is None:
         raise ValueError(f"数据集不存在: {dataset_code}")
@@ -169,6 +209,14 @@ def register_attributes(dataset_code: str, attributes: List[dict]) -> int:
 
 
 def _fetch_attribute_map(dataset_id: int) -> Dict[str, dict]:
+    """查询数据集属性映射表。
+
+    Args:
+        dataset_id: 数据集主键 ID。
+
+    Returns:
+        Dict[str, dict]: 以 `attr_code` 为键的属性映射。
+    """
     sql = """
     SELECT id, attr_code, attr_name
     FROM enterprise_attribute
@@ -182,6 +230,19 @@ def _fetch_attribute_map(dataset_id: int) -> Dict[str, dict]:
 
 
 def ingest_samples(dataset_code: str, samples: List[dict]) -> dict:
+    """批量导入样本与属性值。
+
+    Args:
+        dataset_code: 数据集编码。
+        samples: 样本字典列表，支持嵌套 `values` 属性值映射。
+
+    Returns:
+        dict: 包含 `sample_count` 与 `value_count` 的统计结果。
+
+    Raises:
+        ValueError: 数据集不存在或未注册属性时抛出。
+        RuntimeError: 样本写入后回读失败时抛出。
+    """
     dataset = _fetch_dataset_by_code(dataset_code)
     if dataset is None:
         raise ValueError(f"数据集不存在: {dataset_code}")
@@ -293,6 +354,21 @@ def _upsert_kg_node(
     display_name: Optional[str],
     metadata: Optional[dict],
 ) -> int:
+    """创建或更新知识图谱节点，并返回节点 ID。
+
+    Args:
+        dataset_id: 数据集 ID。
+        node_type: 节点类型。
+        node_key: 节点业务键。
+        display_name: 节点展示名称。
+        metadata: 节点扩展信息。
+
+    Returns:
+        int: 图谱节点主键 ID。
+
+    Raises:
+        RuntimeError: 节点写入后回读失败时抛出。
+    """
     upsert_sql = """
     INSERT INTO enterprise_kg_node (
         dataset_id, node_type, node_key, display_name, metadata_json, is_deleted
@@ -339,6 +415,18 @@ def _upsert_kg_node(
 
 
 def create_explicit_edges(dataset_code: str, edges: List[dict]) -> int:
+    """批量写入显性关系边。
+
+    Args:
+        dataset_code: 数据集编码。
+        edges: 关系边字典列表，包含起止节点、关系类型与证据等字段。
+
+    Returns:
+        int: 成功写入的关系边数量。
+
+    Raises:
+        ValueError: 数据集不存在时抛出。
+    """
     dataset = _fetch_dataset_by_code(dataset_code)
     if dataset is None:
         raise ValueError(f"数据集不存在: {dataset_code}")

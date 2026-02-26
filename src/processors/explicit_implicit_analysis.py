@@ -17,6 +17,14 @@ from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
 
 def _entropy(values: Sequence[str]) -> float:
+    """计算离散序列的信息熵 H(X)。
+
+    Args:
+        values: 离散取值序列。
+
+    Returns:
+        float: 熵值（bit）。
+    """
     total = len(values)
     if total == 0:
         return 0.0
@@ -30,6 +38,18 @@ def _entropy(values: Sequence[str]) -> float:
 
 
 def _mutual_information(x: Sequence[str], y: Sequence[str]) -> float:
+    """计算两个离散变量的互信息 I(X;Y)。
+
+    Args:
+        x: 特征取值序列。
+        y: 敏感属性取值序列。
+
+    Returns:
+        float: 互信息值（bit），下限截断为 0。
+
+    Raises:
+        ValueError: 输入长度不一致时抛出。
+    """
     if len(x) != len(y):
         raise ValueError("互信息计算失败：输入长度不一致。")
     total = len(x)
@@ -49,6 +69,18 @@ def _mutual_information(x: Sequence[str], y: Sequence[str]) -> float:
 
 
 def _mutual_information_multi(features: Sequence[Tuple[str, ...]], y: Sequence[str]) -> float:
+    """计算联合特征与敏感属性的互信息 I(C;S)。
+
+    Args:
+        features: 联合特征元组序列。
+        y: 敏感属性取值序列。
+
+    Returns:
+        float: 联合互信息值（bit），下限截断为 0。
+
+    Raises:
+        ValueError: 输入长度不一致时抛出。
+    """
     if len(features) != len(y):
         raise ValueError("联合互信息计算失败：输入长度不一致。")
     total = len(y)
@@ -72,6 +104,16 @@ def _extract_valid_pairs(
     attrs: Sequence[str],
     sensitive_attr: str,
 ) -> Tuple[List[Tuple[str, ...]], List[str]]:
+    """筛选可参与计算的完整样本对。
+
+    Args:
+        rows: 样本行集合。
+        attrs: 候选特征属性编码序列。
+        sensitive_attr: 敏感属性编码。
+
+    Returns:
+        Tuple[List[Tuple[str, ...]], List[str]]: 联合特征序列与敏感属性序列。
+    """
     feature_values: List[Tuple[str, ...]] = []
     sensitive_values: List[str] = []
     for row in rows:
@@ -98,6 +140,16 @@ def estimate_joint_pic(
     sampling_times: int = 200,
     random_seed: int = 42,
 ) -> float:
+    """估计属性组合的联合 PIC。
+
+    Args:
+        single_pics: 单属性 PIC 列表。
+        sampling_times: 在上下界区间采样次数。
+        random_seed: 采样随机种子。
+
+    Returns:
+        float: 联合 PIC 估计值。
+    """
     if not single_pics:
         return 0.0
     if len(single_pics) == 1:
@@ -128,6 +180,24 @@ def compute_explicit_implicit_scores(
     sampling_times: int = 200,
     theta: float = 0.2,
 ) -> dict:
+    """计算候选属性组合到敏感属性的 LR/PIC/Risk。
+
+    Args:
+        rows: 样本集合，每行为属性值字典。
+        sensitive_attr: 敏感属性编码。
+        candidate_attrs: 候选属性编码列表。
+        pic_defaults: 属性到 PIC 的默认映射。
+        default_pic: 未配置属性的默认 PIC。
+        max_combination_size: 最大组合阶数。
+        sampling_times: 联合 PIC 采样次数。
+        theta: 高风险阈值。
+
+    Returns:
+        dict: 含 `risk_final`、`top_results`、`all_results` 等字段的结果。
+
+    Raises:
+        ValueError: 输入为空、属性不合法或无法产生有效组合结果时抛出。
+    """
     if not rows:
         raise ValueError("分析数据为空。")
     if not candidate_attrs:

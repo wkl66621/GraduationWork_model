@@ -17,6 +17,14 @@ from src.api.routers import api_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    """管理 FastAPI 生命周期事件。
+
+    Args:
+        app: FastAPI 应用实例（当前实现中未直接使用）。
+
+    Yields:
+        None: 应用运行阶段控制权。
+    """
     # 启动时初始化数据库（幂等）
     # init_database()
     yield
@@ -24,8 +32,10 @@ async def lifespan(app: FastAPI):
 
 
 def create_app() -> FastAPI:
-    """
-    创建并配置 FastAPI 应用实例。
+    """创建并配置 FastAPI 应用实例。
+
+    Returns:
+        FastAPI: 已注册路由和生命周期钩子的应用对象。
     """
     app = FastAPI(
         title="Text Fingerprint Service",
@@ -60,12 +70,16 @@ from src.services.fingerprint_service import ingest_text_file
 
 @click.group()
 def cli() -> None:
-    """文本数字指纹工具。"""
+    """声明 CLI 根命令组。"""
 
 
 @cli.command("show-config")
 def show_config() -> None:
-    """打印当前配置（应用、路径、数据库）。"""
+    """打印当前配置（应用、路径、数据库）。
+
+    Returns:
+        None: 通过标准输出展示配置，不返回业务数据。
+    """
     app_cfg = settings.app
     paths_cfg = settings.paths
     db_cfg = settings.database
@@ -80,7 +94,11 @@ def show_config() -> None:
 
 @cli.command("init-db")
 def init_db_cmd() -> None:
-    """初始化数据库表结构（包括 digital_fingerprint_doc 等）。"""
+    """初始化数据库表结构入口。
+
+    Returns:
+        None: 当前版本仅保留命令占位。
+    """
     # click.echo("开始初始化数据库表结构...")
     # init_database()
     # click.echo("数据库初始化完成。")
@@ -125,8 +143,17 @@ def ingest_file_cmd(
     sensitive_level: int,
     max_sentence_length: int,
 ) -> None:
-    """
-    导入单个 txt 文件的数字指纹，并写入 digital_fingerprint_doc。
+    """导入单个 txt 文件并写入数字指纹。
+
+    Args:
+        file_path: 本地 txt 文件路径。
+        doc_unique_id: 可选文档唯一标识，不传则自动生成。
+        doc_source: 文档来源标识。
+        sensitive_level: 敏感等级（0-3）。
+        max_sentence_length: 分句最大长度。
+
+    Returns:
+        None: 结果通过命令行输出。
     """
     doc_id = ingest_text_file(
         file_path=file_path,
@@ -156,6 +183,11 @@ from src.config import settings
 
 
 def main() -> None:
+    """打印基础配置信息的简易入口。
+
+    Returns:
+        None: 以 `print` 方式输出配置项。
+    """
     app_cfg = settings.app
     paths_cfg = settings.paths
     db_cfg = settings.database

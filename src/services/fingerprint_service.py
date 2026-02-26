@@ -32,6 +32,11 @@ from src.processors.text_segmenter import split_sentences
 
 
 def _generate_doc_unique_id() -> str:
+    """生成文档唯一标识。
+
+    Returns:
+        str: 32 位十六进制 UUID 字符串。
+    """
     return uuid.uuid4().hex
 
 
@@ -42,15 +47,17 @@ def ingest_text_file(
     sensitive_level: int = 0,
     max_sentence_length: int = 500,
 ) -> str:
-    """
-    处理一个本地 txt 文件，并写入 digital_fingerprint_doc。
+    """读取本地文本并写入文档级/分句级指纹。
 
-    :param file_path: 本地文件路径
-    :param doc_unique_id: 可选，外部指定的文档唯一标识；为空则自动生成 UUID
-    :param doc_source: 文档来源描述，默认 'local_import'
-    :param sensitive_level: 敏感等级（0-3），与现有 DLP 体系对齐
-    :param max_sentence_length: 分句时的最大长度控制
-    :return: 实际使用的 doc_unique_id（便于调用方记录）
+    Args:
+        file_path: 本地 txt 文件路径。
+        doc_unique_id: 可选文档唯一标识；为空时自动生成。
+        doc_source: 文档来源标签，默认 `local_import`。
+        sensitive_level: 敏感等级（0-3）。
+        max_sentence_length: 分句最大长度阈值。
+
+    Returns:
+        str: 实际使用的 `doc_unique_id`。
     """
     doc_id = doc_unique_id or _generate_doc_unique_id()
 
@@ -82,8 +89,18 @@ def _build_rows_for_digital_fingerprint_doc(
     doc_source: str,
     sensitive_level: int,
 ) -> List[dict]:
-    """
-    根据文件信息和分句结果，生成插入 digital_fingerprint_doc 的记录。
+    """构造写入 `digital_fingerprint_doc` 的批量数据行。
+
+    Args:
+        doc_id: 文档唯一标识。
+        file_info: 文件基础信息与文本内容。
+        document_md5: 整篇文档 MD5。
+        sentences: 分句后的文本列表。
+        doc_source: 文档来源标签。
+        sensitive_level: 敏感等级（0-3）。
+
+    Returns:
+        List[dict]: 一条文档级记录 + 多条分句级记录。
     """
     rows: List[dict] = []
 
@@ -125,8 +142,13 @@ def _build_rows_for_digital_fingerprint_doc(
 
 
 def _insert_digital_fingerprints(rows: List[dict]) -> None:
-    """
-    批量插入 digital_fingerprint_doc。
+    """批量写入数字指纹记录。
+
+    Args:
+        rows: 待写入行数据列表。
+
+    Returns:
+        None: 执行数据库写入，不返回业务数据。
     """
     if not rows:
         return

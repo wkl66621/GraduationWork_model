@@ -19,9 +19,7 @@ router = APIRouter(prefix="/api/v1/fingerprints", tags=["fingerprints"])
 
 
 class IngestFromFileRequest(BaseModel):
-    """
-    从本地 txt 文件导入数字指纹的请求体。
-    """
+    """从本地 txt 文件导入数字指纹的请求体。"""
 
     file_path: str = Field(
         ...,
@@ -43,9 +41,7 @@ class IngestFromFileRequest(BaseModel):
 
 
 class IngestResponse(BaseModel):
-    """
-    导入指纹后的响应体。
-    """
+    """导入指纹后的响应体。"""
 
     doc_unique_id: str = Field(..., description="实际使用的文档唯一ID。")
 
@@ -58,12 +54,16 @@ class IngestResponse(BaseModel):
     response_description="返回文档唯一ID。",
 )
 def ingest_from_file(req: IngestFromFileRequest) -> IngestResponse:
-    """
-    从本地 txt 文件生成数字指纹并写入 `digital_fingerprint_doc`。
+    """从本地 txt 文件生成数字指纹并落库。
 
-    注意：
-    - 仅在服务器本机运行（不适合作为对外互联网接口暴露文件路径）。
-    - 如果文件路径不存在，将返回 400 错误。
+    Args:
+        req: 包含文件路径、文档来源、敏感等级等信息的请求体。
+
+    Returns:
+        IngestResponse: 返回实际写入使用的 `doc_unique_id`。
+
+    Raises:
+        HTTPException: 当输入文件不存在时返回 400；内部错误时返回 500。
     """
     try:
         doc_id = ingest_text_file(

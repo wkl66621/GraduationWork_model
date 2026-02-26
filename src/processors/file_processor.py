@@ -13,6 +13,7 @@ from typing import Optional
 
 @dataclass
 class FileInfo:
+    """文本文件元信息与内容载体。"""
     path: Path
     name: str
     size: int
@@ -22,11 +23,17 @@ class FileInfo:
 
 
 def read_text_file(path: str | Path, encoding: Optional[str] = "utf-8") -> FileInfo:
-    """
-    读取 txt 文件内容，并返回基础元信息。
+    """读取 txt 文件并返回结构化文件信息。
 
-    - 默认按 utf-8 打开，如有需要可在调用时传入其他编码。
-    - doc_type 暂时固定为 'txt'，后续可根据后缀或内容判断。
+    Args:
+        path: 文件路径，支持 `str` 与 `Path`。
+        encoding: 文本编码，默认 `utf-8`。
+
+    Returns:
+        FileInfo: 含路径、文件名、大小、编码和文本内容的对象。
+
+    Raises:
+        FileNotFoundError: 目标路径不存在或不是文件时抛出。
     """
     p = Path(path).expanduser().resolve()
     if not p.is_file():

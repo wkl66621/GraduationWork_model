@@ -19,6 +19,14 @@ from src.processors.explicit_implicit_analysis import compute_explicit_implicit_
 
 
 def _fetch_dataset(dataset_code: str) -> Optional[dict]:
+    """按数据集编码查询数据集。
+
+    Args:
+        dataset_code: 数据集编码。
+
+    Returns:
+        Optional[dict]: 命中时返回数据集记录，否则返回 `None`。
+    """
     sql = """
     SELECT id, dataset_code, dataset_name
     FROM enterprise_dataset
@@ -32,6 +40,14 @@ def _fetch_dataset(dataset_code: str) -> Optional[dict]:
 
 
 def _fetch_attributes(dataset_id: int) -> List[dict]:
+    """查询数据集下的属性定义。
+
+    Args:
+        dataset_id: 数据集 ID。
+
+    Returns:
+        List[dict]: 属性列表，按主键升序返回。
+    """
     sql = """
     SELECT id, attr_code, attr_name, is_sensitive, default_pic
     FROM enterprise_attribute
@@ -45,6 +61,15 @@ def _fetch_attributes(dataset_id: int) -> List[dict]:
 
 
 def _fetch_sample_rows(dataset_id: int, attr_codes: Sequence[str]) -> List[dict]:
+    """拉取并透视样本属性值。
+
+    Args:
+        dataset_id: 数据集 ID。
+        attr_codes: 需要参与分析的属性编码集合。
+
+    Returns:
+        List[dict]: 以样本为单位的扁平字典列表。
+    """
     if not attr_codes:
         return []
     sql = """
@@ -86,6 +111,21 @@ def _upsert_kg_node(
     display_name: Optional[str],
     metadata: Optional[dict],
 ) -> int:
+    """创建或更新图谱节点并返回节点 ID。
+
+    Args:
+        dataset_id: 数据集 ID。
+        node_type: 节点类型。
+        node_key: 节点业务键。
+        display_name: 展示名称。
+        metadata: 扩展元数据。
+
+    Returns:
+        int: 节点主键 ID。
+
+    Raises:
+        RuntimeError: 节点写入后无法回读时抛出。
+    """
     upsert_sql = """
     INSERT INTO enterprise_kg_node (
         dataset_id, node_type, node_key, display_name, metadata_json, is_deleted
@@ -137,6 +177,17 @@ def _save_implicit_edges(
     analysis_result: dict,
     calc_batch_id: str,
 ) -> None:
+    """将风险分析结果保存为隐性关系边。
+
+    Args:
+        dataset_id: 数据集 ID。
+        sensitive_attr: 敏感属性信息。
+        analysis_result: 风险计算结果（包含全部组合）。
+        calc_batch_id: 当前计算批次号。
+
+    Returns:
+        None: 仅执行数据库写入。
+    """
     sensitive_node_id = _upsert_kg_node(
         dataset_id=dataset_id,
         node_type="attribute",
@@ -222,6 +273,24 @@ def analyze_dataset_risk(
     sampling_times: int = 200,
     theta: float = 0.2,
 ) -> dict:
+    """执行数据集隐性关系与泄露风险分析。
+
+    Args:
+        dataset_code: 数据集编码。
+        sensitive_attr_code: 敏感属性编码。
+        candidate_attr_codes: 可选候选属性集合，不传则自动推断非敏感属性。
+        pic_defaults: 属性级 PIC 默认值映射。
+        default_pic: 未命中映射时的默认 PIC。
+        max_combination_size: 组合属性最大阶数。
+        sampling_times: 联合 PIC 采样次数。
+        theta: 高风险阈值。
+
+    Returns:
+        dict: 风险总览、批次号与 Top 风险组合。
+
+    Raises:
+        ValueError: 数据集、属性或样本数据不满足分析条件时抛出。
+    """
     dataset = _fetch_dataset(dataset_code)
     if dataset is None:
         raise ValueError(f"数据集不存在: {dataset_code}")

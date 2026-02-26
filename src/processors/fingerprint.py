@@ -15,8 +15,13 @@ from typing import Union
 
 
 def md5_text(text: str) -> str:
-    """
-    对字符串内容计算 MD5，返回 32 位十六进制字符串。
+    """计算文本内容的 MD5 值。
+
+    Args:
+        text: 待计算哈希的文本内容。
+
+    Returns:
+        str: 32 位十六进制 MD5 字符串。
     """
     m = hashlib.md5()
     # 明确指定 utf-8，避免平台差异
@@ -25,8 +30,17 @@ def md5_text(text: str) -> str:
 
 
 def md5_file(path: Union[str, Path], chunk_size: int = 8192) -> str:
-    """
-    对文件内容计算 MD5，采用分块读取以支持大文件。
+    """计算文件内容的 MD5 值（分块读取）。
+
+    Args:
+        path: 文件路径。
+        chunk_size: 单次读取字节数。
+
+    Returns:
+        str: 32 位十六进制 MD5 字符串。
+
+    Raises:
+        FileNotFoundError: 文件不存在时抛出。
     """
     p = Path(path).expanduser().resolve()
     if not p.is_file():

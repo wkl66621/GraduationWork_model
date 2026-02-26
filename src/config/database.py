@@ -12,15 +12,25 @@ from .settings import settings, DatabaseConfig
 
 
 def get_db_config(override: Optional[DatabaseConfig] = None) -> DatabaseConfig:
-    """
-    获取数据库配置，可以传入 override 来覆盖全局配置（例如单元测试）。
+    """获取数据库配置对象。
+
+    Args:
+        override: 可选覆盖配置，常用于测试场景。
+
+    Returns:
+        DatabaseConfig: 最终生效的数据库配置。
     """
     return override or settings.database
 
 
 def get_pymysql_kwargs(db_cfg: Optional[DatabaseConfig] = None) -> Dict[str, Any]:
-    """
-    将 DatabaseConfig 转换为 PyMySQL.connect 可接受的参数字典。
+    """将数据库配置转换为 PyMySQL 连接参数。
+
+    Args:
+        db_cfg: 可选数据库配置，未传时使用全局配置。
+
+    Returns:
+        Dict[str, Any]: 可直接传给 `pymysql.connect` 的参数字典。
     """
     cfg = get_db_config(db_cfg)
     return {
