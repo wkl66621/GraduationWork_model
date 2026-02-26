@@ -1,18 +1,9 @@
-"""
-数据库表结构脚本定义（手工执行版）。
+-- 手工执行数据库初始化脚本（DLP 显隐性分析底座）
+-- 说明：
+-- 1) 本脚本由项目维护，但不在应用启动时自动执行；
+-- 2) 执行顺序已按外键依赖排列；
+-- 3) 建议在目标数据库（graduation_work）中手工运行。
 
-说明：
-- 本文件只维护建表 SQL 常量，不自动连接数据库执行。
-- 由使用者手工在 MySQL 中执行，避免项目启动时自动初始化库表。
-- 除现有数字指纹表外，新增企业数据集与关系知识图谱底座表。
-"""
-
-from __future__ import annotations
-
-from typing import List
-
-
-CREATE_TABLE_DOCUMENTS = """
 CREATE TABLE IF NOT EXISTS documents (
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
     file_path VARCHAR(512) NOT NULL,
@@ -26,10 +17,7 @@ CREATE TABLE IF NOT EXISTS documents (
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     UNIQUE KEY uq_documents_path (file_path)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-"""
 
-
-CREATE_TABLE_SEGMENTS = """
 CREATE TABLE IF NOT EXISTS segments (
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
     document_id BIGINT UNSIGNED NOT NULL,
@@ -46,11 +34,8 @@ CREATE TABLE IF NOT EXISTS segments (
         ON DELETE CASCADE,
     UNIQUE KEY uq_segments_doc_idx (document_id, idx)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-"""
 
-
-CREATE_TABLE_DIGITAL_FINGERPRINT_DOC = """
-CREATE TABLE `digital_fingerprint_doc` (
+CREATE TABLE IF NOT EXISTS `digital_fingerprint_doc` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
   `doc_unique_id` varchar(64) NOT NULL COMMENT '文档唯一标识（如UUID）',
   `doc_name` varchar(255) NOT NULL COMMENT '文档名称',
@@ -71,10 +56,7 @@ CREATE TABLE `digital_fingerprint_doc` (
   KEY `idx_doc_type` (`doc_type`),
   KEY `idx_create_time` (`create_time`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='数字指纹文档库主表（与DLP检测表隔离）';
-"""
 
-
-CREATE_TABLE_ENTERPRISE_DATASET = """
 CREATE TABLE IF NOT EXISTS `enterprise_dataset` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
   `dataset_code` varchar(64) NOT NULL COMMENT '数据集编码（企业内唯一）',
@@ -92,10 +74,7 @@ CREATE TABLE IF NOT EXISTS `enterprise_dataset` (
   KEY `idx_domain_name` (`domain_name`),
   KEY `idx_source_system` (`source_system`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='企业数据集主表';
-"""
 
-
-CREATE_TABLE_ENTERPRISE_ATTRIBUTE = """
 CREATE TABLE IF NOT EXISTS `enterprise_attribute` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
   `dataset_id` bigint NOT NULL COMMENT '所属数据集ID',
@@ -116,10 +95,7 @@ CREATE TABLE IF NOT EXISTS `enterprise_attribute` (
   KEY `idx_dataset_sensitive` (`dataset_id`, `is_sensitive`),
   CONSTRAINT `fk_attr_dataset` FOREIGN KEY (`dataset_id`) REFERENCES `enterprise_dataset` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='企业数据集属性定义表';
-"""
 
-
-CREATE_TABLE_ENTERPRISE_SAMPLE = """
 CREATE TABLE IF NOT EXISTS `enterprise_sample` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
   `dataset_id` bigint NOT NULL COMMENT '所属数据集ID',
@@ -135,10 +111,7 @@ CREATE TABLE IF NOT EXISTS `enterprise_sample` (
   KEY `idx_dataset_event_time` (`dataset_id`, `event_time`),
   CONSTRAINT `fk_sample_dataset` FOREIGN KEY (`dataset_id`) REFERENCES `enterprise_dataset` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='企业数据集样本主表';
-"""
 
-
-CREATE_TABLE_ENTERPRISE_SAMPLE_VALUE = """
 CREATE TABLE IF NOT EXISTS `enterprise_sample_value` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
   `sample_id` bigint NOT NULL COMMENT '样本ID',
@@ -155,10 +128,7 @@ CREATE TABLE IF NOT EXISTS `enterprise_sample_value` (
   CONSTRAINT `fk_sample_value_sample` FOREIGN KEY (`sample_id`) REFERENCES `enterprise_sample` (`id`),
   CONSTRAINT `fk_sample_value_attribute` FOREIGN KEY (`attribute_id`) REFERENCES `enterprise_attribute` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='企业样本属性值表（EAV模型）';
-"""
 
-
-CREATE_TABLE_KG_NODE = """
 CREATE TABLE IF NOT EXISTS `enterprise_kg_node` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
   `dataset_id` bigint NOT NULL COMMENT '所属数据集ID',
@@ -174,10 +144,7 @@ CREATE TABLE IF NOT EXISTS `enterprise_kg_node` (
   KEY `idx_dataset_node_type` (`dataset_id`, `node_type`),
   CONSTRAINT `fk_kg_node_dataset` FOREIGN KEY (`dataset_id`) REFERENCES `enterprise_dataset` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='企业知识图谱节点表';
-"""
 
-
-CREATE_TABLE_KG_EDGE_EXPLICIT = """
 CREATE TABLE IF NOT EXISTS `enterprise_kg_edge_explicit` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
   `dataset_id` bigint NOT NULL COMMENT '所属数据集ID',
@@ -197,10 +164,7 @@ CREATE TABLE IF NOT EXISTS `enterprise_kg_edge_explicit` (
   CONSTRAINT `fk_explicit_from_node` FOREIGN KEY (`from_node_id`) REFERENCES `enterprise_kg_node` (`id`),
   CONSTRAINT `fk_explicit_to_node` FOREIGN KEY (`to_node_id`) REFERENCES `enterprise_kg_node` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='企业知识图谱显性关系边表';
-"""
 
-
-CREATE_TABLE_KG_EDGE_IMPLICIT = """
 CREATE TABLE IF NOT EXISTS `enterprise_kg_edge_implicit` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
   `dataset_id` bigint NOT NULL COMMENT '所属数据集ID',
@@ -226,26 +190,3 @@ CREATE TABLE IF NOT EXISTS `enterprise_kg_edge_implicit` (
   CONSTRAINT `fk_implicit_to_node` FOREIGN KEY (`to_node_id`) REFERENCES `enterprise_kg_node` (`id`),
   CONSTRAINT `fk_implicit_sensitive_attr` FOREIGN KEY (`sensitive_attr_id`) REFERENCES `enterprise_attribute` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='企业知识图谱隐性关系边表（MI/LR/Risk）';
-"""
-
-
-ALL_CREATE_TABLE_SQL: List[str] = [
-    CREATE_TABLE_DOCUMENTS,
-    CREATE_TABLE_SEGMENTS,
-    CREATE_TABLE_DIGITAL_FINGERPRINT_DOC,
-    CREATE_TABLE_ENTERPRISE_DATASET,
-    CREATE_TABLE_ENTERPRISE_ATTRIBUTE,
-    CREATE_TABLE_ENTERPRISE_SAMPLE,
-    CREATE_TABLE_ENTERPRISE_SAMPLE_VALUE,
-    CREATE_TABLE_KG_NODE,
-    CREATE_TABLE_KG_EDGE_EXPLICIT,
-    CREATE_TABLE_KG_EDGE_IMPLICIT,
-]
-
-
-def build_manual_init_sql() -> str:
-    """
-    生成完整建表 SQL 脚本文本（不执行）。
-    """
-    return "\n\n".join(sql.strip() for sql in ALL_CREATE_TABLE_SQL) + "\n"
-
