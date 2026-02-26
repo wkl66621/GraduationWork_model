@@ -12,3 +12,10 @@ __pycache__/
 *.pyo
 *.pyd
 .pytest_cache/
+# 其他ide配置也要忽略
+.idea/
+.lingma/
+.cursor/
+# 数据文件也要忽略
+/data/
+/resource/
