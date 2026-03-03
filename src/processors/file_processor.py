@@ -21,7 +21,11 @@ class FileInfo:
     doc_type: str
     content: str
 
-
+'''
+TODO： 
+1.文件内容可能过大，可考虑分块读取（分块是否会影响全文数字指纹生成）；
+2.文件编码可能不统一，可考虑自动探测编码。
+'''
 def read_text_file(path: str | Path, encoding: Optional[str] = "utf-8") -> FileInfo:
     """读取 txt 文件并返回结构化文件信息。
 
@@ -36,6 +40,7 @@ def read_text_file(path: str | Path, encoding: Optional[str] = "utf-8") -> FileI
         FileNotFoundError: 目标路径不存在或不是文件时抛出。
     """
     p = Path(path).expanduser().resolve()
+    print(f"正在处理文件: {p}")
     if not p.is_file():
         raise FileNotFoundError(f"文件不存在: {p}")
 

@@ -30,7 +30,7 @@ def md5_text(text: str) -> str:
 
 
 def md5_file(path: Union[str, Path], chunk_size: int = 8192) -> str:
-    """计算文件内容的 MD5 值（分块读取）。
+    """计算文件内容的 MD5 值（分块读取，但是返回的md5值还是一整个文件内容的，同上一个方法md5_text一样）。
 
     Args:
         path: 文件路径。

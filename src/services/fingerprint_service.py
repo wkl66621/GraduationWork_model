@@ -61,7 +61,9 @@ def ingest_text_file(
     """
     doc_id = doc_unique_id or _generate_doc_unique_id()
 
+    # 读取文件
     file_info = read_text_file(file_path)
+    # 计算文档 MD5
     document_md5 = md5_text(file_info.content)
 
     # 分句

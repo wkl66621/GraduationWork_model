@@ -31,7 +31,9 @@ def _normalize_text(text: str) -> str:
     # 去掉两端空白，并规范换行
     return text.replace("\r\n", "\n").replace("\r", "\n").strip()
 
-
+'''
+TODO:后续优化方向，1.只按照标点符号划分句子。2.按段落划分，整段都返回（考虑修改_normalize_text方法，标记分段处供后续分段处理）
+'''
 def split_sentences(
     text: str,
     max_length: int = 500,
@@ -65,6 +67,7 @@ def split_sentences(
 
         sentences.extend(_split_by_length(candidate, max_length))
 
+    # s.strip()的返回值是去除两边空白字符的文本，若为空则不加入列表
     return [s for s in sentences if s.strip()]
 
 
