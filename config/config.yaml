@@ -17,3 +17,18 @@ database:
   db: "graduation_work"
   charset: "utf8mb4"
 
+coban:
+  ngram_range: [1, 3]
+  n_clusters: 3
+  random_state: 42
+  max_iter: 300
+  context_span: 20
+  top_k_conf_terms: 120
+  top_k_context_terms: 30
+  min_edge_weight: 0.0
+  cluster_similarity_threshold: 0.05
+  irregular_ratio_threshold: 20.0
+  detection_threshold: 0.8
+  top_k_clusters: 3
+  artifact_subdir: "coban_models"
+

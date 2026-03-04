@@ -229,6 +229,170 @@ CREATE TABLE IF NOT EXISTS `enterprise_kg_edge_implicit` (
 """
 
 
+CREATE_TABLE_COBAN_MODEL_RUN = """
+CREATE TABLE IF NOT EXISTS `coban_model_run` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `run_id` varchar(64) NOT NULL COMMENT '训练批次唯一ID',
+  `run_name` varchar(255) DEFAULT NULL COMMENT '训练任务名称',
+  `dataset_name` varchar(255) DEFAULT NULL COMMENT '数据集名称',
+  `source_type` varchar(32) NOT NULL DEFAULT 'mixed' COMMENT '数据来源类型：real/mock/mixed',
+  `train_doc_count` int NOT NULL DEFAULT 0 COMMENT '训练文档总数',
+  `conf_doc_count` int NOT NULL DEFAULT 0 COMMENT '机密文档数',
+  `non_conf_doc_count` int NOT NULL DEFAULT 0 COMMENT '非机密文档数',
+  `params_json` json DEFAULT NULL COMMENT '训练参数快照',
+  `metrics_json` json DEFAULT NULL COMMENT '评估指标快照',
+  `model_artifact_path` varchar(1024) DEFAULT NULL COMMENT '模型产物路径',
+  `status` varchar(32) NOT NULL DEFAULT 'created' COMMENT '状态：created/running/succeeded/failed',
+  `start_time` datetime DEFAULT NULL COMMENT '训练开始时间',
+  `end_time` datetime DEFAULT NULL COMMENT '训练结束时间',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `is_deleted` tinyint(1) NOT NULL DEFAULT 0 COMMENT '逻辑删除标识',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_coban_run_id` (`run_id`),
+  KEY `idx_coban_status` (`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='CoBAn训练批次主表';
+"""
+
+
+CREATE_TABLE_COBAN_CLUSTER = """
+CREATE TABLE IF NOT EXISTS `coban_cluster` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `run_id` bigint NOT NULL COMMENT '所属训练批次ID',
+  `cluster_code` varchar(64) NOT NULL COMMENT '聚类编号',
+  `centroid_json` json DEFAULT NULL COMMENT '聚类中心向量',
+  `cluster_size` int NOT NULL DEFAULT 0 COMMENT '聚类文档数量',
+  `conf_doc_count` int NOT NULL DEFAULT 0 COMMENT '聚类内机密文档数',
+  `non_conf_doc_count` int NOT NULL DEFAULT 0 COMMENT '聚类内非机密文档数',
+  `similarity_threshold` decimal(8,6) DEFAULT NULL COMMENT '簇级判定阈值',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_coban_run_cluster` (`run_id`, `cluster_code`),
+  KEY `idx_coban_cluster_run` (`run_id`),
+  CONSTRAINT `fk_coban_cluster_run` FOREIGN KEY (`run_id`) REFERENCES `coban_model_run` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='CoBAn聚类信息表';
+"""
+
+
+CREATE_TABLE_COBAN_CORPUS_DOCUMENT = """
+CREATE TABLE IF NOT EXISTS `coban_corpus_document` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `run_id` bigint NOT NULL COMMENT '所属训练批次ID',
+  `doc_uid` varchar(64) NOT NULL COMMENT '文档唯一标识',
+  `doc_name` varchar(255) DEFAULT NULL COMMENT '文档名称',
+  `doc_path` varchar(1024) DEFAULT NULL COMMENT '文档路径',
+  `raw_text` longtext COMMENT '原始文本',
+  `preprocessed_text` longtext COMMENT '预处理文本',
+  `source_type` varchar(32) NOT NULL DEFAULT 'real' COMMENT '来源：real/mock',
+  `is_confidential` tinyint(1) NOT NULL DEFAULT 0 COMMENT '是否机密标签',
+  `label` varchar(64) DEFAULT NULL COMMENT '业务标签（财务/技术/规划等）',
+  `assigned_cluster_id` bigint DEFAULT NULL COMMENT '聚类分配ID',
+  `metadata_json` json DEFAULT NULL COMMENT '扩展元数据',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_coban_run_doc_uid` (`run_id`, `doc_uid`),
+  KEY `idx_coban_doc_cluster` (`assigned_cluster_id`),
+  KEY `idx_coban_doc_conf` (`run_id`, `is_confidential`),
+  CONSTRAINT `fk_coban_doc_run` FOREIGN KEY (`run_id`) REFERENCES `coban_model_run` (`id`),
+  CONSTRAINT `fk_coban_doc_cluster` FOREIGN KEY (`assigned_cluster_id`) REFERENCES `coban_cluster` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='CoBAn训练/检测文档表';
+"""
+
+
+CREATE_TABLE_COBAN_TERM_CONFIDENTIAL = """
+CREATE TABLE IF NOT EXISTS `coban_term_confidential` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `run_id` bigint NOT NULL COMMENT '所属训练批次ID',
+  `cluster_id` bigint NOT NULL COMMENT '所属聚类ID',
+  `term_value` varchar(255) NOT NULL COMMENT '机密术语',
+  `term_score` decimal(16,8) NOT NULL COMMENT '术语得分',
+  `conf_probability` decimal(16,8) DEFAULT NULL COMMENT '机密语料概率',
+  `non_conf_probability` decimal(16,8) DEFAULT NULL COMMENT '非机密语料概率',
+  `support_conf_docs` int NOT NULL DEFAULT 0 COMMENT '命中机密文档数',
+  `support_non_conf_docs` int NOT NULL DEFAULT 0 COMMENT '命中非机密文档数',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_coban_conf_term` (`cluster_id`, `term_value`),
+  KEY `idx_coban_conf_term_run` (`run_id`, `cluster_id`),
+  CONSTRAINT `fk_coban_conf_term_run` FOREIGN KEY (`run_id`) REFERENCES `coban_model_run` (`id`),
+  CONSTRAINT `fk_coban_conf_term_cluster` FOREIGN KEY (`cluster_id`) REFERENCES `coban_cluster` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='CoBAn机密术语表';
+"""
+
+
+CREATE_TABLE_COBAN_TERM_CONTEXT = """
+CREATE TABLE IF NOT EXISTS `coban_term_context` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `run_id` bigint NOT NULL COMMENT '所属训练批次ID',
+  `cluster_id` bigint NOT NULL COMMENT '所属聚类ID',
+  `conf_term_id` bigint NOT NULL COMMENT '机密术语ID',
+  `context_term` varchar(255) NOT NULL COMMENT '上下文术语',
+  `context_score` decimal(16,8) NOT NULL COMMENT '上下文得分',
+  `conf_probability` decimal(16,8) DEFAULT NULL COMMENT '机密上下文概率',
+  `non_conf_probability` decimal(16,8) DEFAULT NULL COMMENT '非机密上下文概率',
+  `support_conf_docs` int NOT NULL DEFAULT 0 COMMENT '命中机密文档数',
+  `support_non_conf_docs` int NOT NULL DEFAULT 0 COMMENT '命中非机密文档数',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_coban_context_term` (`conf_term_id`, `context_term`),
+  KEY `idx_coban_context_run` (`run_id`, `cluster_id`),
+  CONSTRAINT `fk_coban_context_run` FOREIGN KEY (`run_id`) REFERENCES `coban_model_run` (`id`),
+  CONSTRAINT `fk_coban_context_cluster` FOREIGN KEY (`cluster_id`) REFERENCES `coban_cluster` (`id`),
+  CONSTRAINT `fk_coban_context_conf_term` FOREIGN KEY (`conf_term_id`) REFERENCES `coban_term_confidential` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='CoBAn上下文术语表';
+"""
+
+
+CREATE_TABLE_COBAN_GRAPH_EDGE = """
+CREATE TABLE IF NOT EXISTS `coban_graph_edge` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `run_id` bigint NOT NULL COMMENT '所属训练批次ID',
+  `cluster_id` bigint NOT NULL COMMENT '所属聚类ID',
+  `conf_term_id` bigint NOT NULL COMMENT '机密术语ID',
+  `context_term_id` bigint NOT NULL COMMENT '上下文术语ID',
+  `edge_weight` decimal(16,8) NOT NULL COMMENT '边权重',
+  `metadata_json` json DEFAULT NULL COMMENT '边扩展信息',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_coban_graph_edge` (`cluster_id`, `conf_term_id`, `context_term_id`),
+  KEY `idx_coban_graph_run` (`run_id`, `cluster_id`),
+  CONSTRAINT `fk_coban_graph_run` FOREIGN KEY (`run_id`) REFERENCES `coban_model_run` (`id`),
+  CONSTRAINT `fk_coban_graph_cluster` FOREIGN KEY (`cluster_id`) REFERENCES `coban_cluster` (`id`),
+  CONSTRAINT `fk_coban_graph_conf_term` FOREIGN KEY (`conf_term_id`) REFERENCES `coban_term_confidential` (`id`),
+  CONSTRAINT `fk_coban_graph_context_term` FOREIGN KEY (`context_term_id`) REFERENCES `coban_term_context` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='CoBAn机密术语图边表';
+"""
+
+
+CREATE_TABLE_COBAN_DETECTION_RESULT = """
+CREATE TABLE IF NOT EXISTS `coban_detection_result` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `run_id` bigint NOT NULL COMMENT '模型批次ID',
+  `doc_uid` varchar(64) NOT NULL COMMENT '检测文档唯一标识',
+  `doc_name` varchar(255) DEFAULT NULL COMMENT '文档名称',
+  `doc_path` varchar(1024) DEFAULT NULL COMMENT '文档路径',
+  `input_text` longtext COMMENT '检测输入文本',
+  `matched_clusters_json` json DEFAULT NULL COMMENT '命中簇信息',
+  `confidentiality_score` decimal(16,8) NOT NULL COMMENT '机密性总分',
+  `threshold_value` decimal(16,8) NOT NULL COMMENT '判定阈值',
+  `is_confidential` tinyint(1) NOT NULL DEFAULT 0 COMMENT '是否机密',
+  `evidence_json` json DEFAULT NULL COMMENT '命中证据',
+  `decision_reason` varchar(1024) DEFAULT NULL COMMENT '判定原因',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  KEY `idx_coban_detect_run` (`run_id`),
+  KEY `idx_coban_detect_conf` (`run_id`, `is_confidential`),
+  CONSTRAINT `fk_coban_detect_run` FOREIGN KEY (`run_id`) REFERENCES `coban_model_run` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='CoBAn检测结果表';
+"""
+
+
 ALL_CREATE_TABLE_SQL: List[str] = [
     CREATE_TABLE_DOCUMENTS,
     CREATE_TABLE_SEGMENTS,
@@ -240,6 +404,13 @@ ALL_CREATE_TABLE_SQL: List[str] = [
     CREATE_TABLE_KG_NODE,
     CREATE_TABLE_KG_EDGE_EXPLICIT,
     CREATE_TABLE_KG_EDGE_IMPLICIT,
+    CREATE_TABLE_COBAN_MODEL_RUN,
+    CREATE_TABLE_COBAN_CLUSTER,
+    CREATE_TABLE_COBAN_CORPUS_DOCUMENT,
+    CREATE_TABLE_COBAN_TERM_CONFIDENTIAL,
+    CREATE_TABLE_COBAN_TERM_CONTEXT,
+    CREATE_TABLE_COBAN_GRAPH_EDGE,
+    CREATE_TABLE_COBAN_DETECTION_RESULT,
 ]
 
 

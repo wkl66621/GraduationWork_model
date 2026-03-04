@@ -11,7 +11,7 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Sequence, Tuple
 
 import yaml
 
@@ -49,11 +49,31 @@ class DatabaseConfig:
 
 
 @dataclass
+class CobanConfig:
+    """CoBAn 模型训练与检测配置。"""
+
+    ngram_range: Tuple[int, int] = (1, 3)
+    n_clusters: int = 3
+    random_state: int = 42
+    max_iter: int = 300
+    context_span: int = 20
+    top_k_conf_terms: int = 120
+    top_k_context_terms: int = 30
+    min_edge_weight: float = 0.0
+    cluster_similarity_threshold: float = 0.05
+    irregular_ratio_threshold: float = 20.0
+    detection_threshold: float = 0.8
+    top_k_clusters: int = 3
+    artifact_subdir: str = "coban_models"
+
+
+@dataclass
 class Settings:
     """全局配置聚合对象。"""
     app: AppConfig
     paths: PathsConfig
     database: DatabaseConfig
+    coban: CobanConfig
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "Settings":
@@ -77,7 +97,49 @@ class Settings:
 
         db_cfg = DatabaseConfig(**data.get("database", {}))
 
-        return cls(app=app_cfg, paths=paths_cfg, database=db_cfg)
+        coban_raw = data.get("coban", {})
+        coban_cfg = CobanConfig(
+            ngram_range=_parse_ngram_range(coban_raw.get("ngram_range", (1, 3))),
+            n_clusters=int(coban_raw.get("n_clusters", 3)),
+            random_state=int(coban_raw.get("random_state", 42)),
+            max_iter=int(coban_raw.get("max_iter", 300)),
+            context_span=int(coban_raw.get("context_span", 20)),
+            top_k_conf_terms=int(coban_raw.get("top_k_conf_terms", 120)),
+            top_k_context_terms=int(coban_raw.get("top_k_context_terms", 30)),
+            min_edge_weight=float(coban_raw.get("min_edge_weight", 0.0)),
+            cluster_similarity_threshold=float(
+                coban_raw.get("cluster_similarity_threshold", 0.05)
+            ),
+            irregular_ratio_threshold=float(coban_raw.get("irregular_ratio_threshold", 20.0)),
+            detection_threshold=float(coban_raw.get("detection_threshold", 0.8)),
+            top_k_clusters=int(coban_raw.get("top_k_clusters", 3)),
+            artifact_subdir=str(coban_raw.get("artifact_subdir", "coban_models")),
+        )
+
+        return cls(app=app_cfg, paths=paths_cfg, database=db_cfg, coban=coban_cfg)
+
+
+def _parse_ngram_range(raw: Any) -> Tuple[int, int]:
+    """解析并校验 ngram 范围配置。
+
+    Args:
+        raw: 原始 ngram 配置，支持 tuple/list，长度必须为 2。
+
+    Returns:
+        Tuple[int, int]: 标准化后的 `(min_n, max_n)`。
+
+    Raises:
+        ValueError: ngram 配置格式非法或上下界不合法时抛出。
+    """
+    if not isinstance(raw, Sequence) or isinstance(raw, (str, bytes)) or len(raw) != 2:
+        raise ValueError("coban.ngram_range 必须是长度为 2 的数组，例如 [1, 3]。")
+
+    min_n = int(raw[0])
+    max_n = int(raw[1])
+    if min_n < 1 or max_n < min_n:
+        raise ValueError("coban.ngram_range 必须满足 1 <= min_n <= max_n。")
+
+    return (min_n, max_n)
 
 
 def _load_yaml_config(path: Path) -> Dict[str, Any]:
