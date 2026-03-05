@@ -21,7 +21,11 @@ from src.services.enterprise_dataset_service import (
     ingest_samples,
     register_attributes,
 )
-from src.services.risk_analysis_service import analyze_dataset_risk
+from src.services.risk_analysis_service import (
+    analyze_dataset_risk,
+    export_latest_implicit_risk_image,
+    get_latest_implicit_risk_visualization,
+)
 
 router = APIRouter(prefix="/api/v1/enterprise-data", tags=["enterprise-data"])
 
@@ -170,6 +174,36 @@ class AnalyzeImplicitRiskResponse(BaseModel):
     theta: float
     is_high_risk: bool
     top_results: List[RiskComboResult]
+
+
+class ImplicitRiskVisualizationResponse(BaseModel):
+    """隐性风险可视化聚合响应体。"""
+
+    dataset_code: str
+    dataset_id: int
+    calc_batch_id: str
+    cards: Dict[str, Any]
+    chart_series: Dict[str, Any]
+    table_rows: List[Dict[str, Any]]
+
+
+class VisualizationImageResponse(BaseModel):
+    """可视化图像导出响应体。
+
+    Notes:
+        为兼容历史调用方，保留 `image_path` 字段；
+        新调用方建议使用统一字段 `image_url`。
+    """
+
+    image_url: str
+    generated_at: str
+    chart_type: str
+    image_format: str
+    chart_meta: Dict[str, Any]
+    image_path: Optional[str] = Field(
+        default=None,
+        description="兼容字段，建议改用 image_url。",
+    )
 
 
 @router.post(
@@ -362,3 +396,100 @@ def analyze_implicit_risk(
             detail=f"执行隐性关系分析失败: {e}",
         ) from e
     return AnalyzeImplicitRiskResponse(**result)
+
+
+@router.get(
+    "/datasets/{dataset_code}/visualization/implicit-risk/latest",
+    response_model=ImplicitRiskVisualizationResponse,
+    summary="查询最新隐性风险可视化聚合数据",
+)
+def get_latest_implicit_risk_visualization_endpoint(
+    dataset_code: str,
+    theta: condecimal(ge=0, le=1, max_digits=8, decimal_places=6) = 0.2,
+    top_n: conint(ge=1, le=100) = 20,
+) -> ImplicitRiskVisualizationResponse:
+    """读取指定数据集最新隐性风险批次的可视化数据。
+
+    Args:
+        dataset_code: 数据集编码。
+        theta: 风险阈值，用于生成高风险卡片状态。
+        top_n: 返回图表和表格的组合数量上限。
+
+    Returns:
+        ImplicitRiskVisualizationResponse: 前端可直接展示的聚合结果。
+
+    Raises:
+        HTTPException: 数据集不存在或未产生风险结果时返回 404。
+    """
+    try:
+        result = get_latest_implicit_risk_visualization(
+            dataset_code=dataset_code,
+            theta=float(theta),
+            top_n=top_n,
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e),
+        ) from e
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"查询隐性风险可视化数据失败: {e}",
+        ) from e
+    return ImplicitRiskVisualizationResponse(**result)
+
+
+@router.get(
+    "/datasets/{dataset_code}/visualization-images/implicit-risk",
+    response_model=VisualizationImageResponse,
+    summary="导出隐性风险可视化图像",
+)
+def export_implicit_risk_visualization_image(
+    dataset_code: str,
+    chart_type: constr(strip_whitespace=True, min_length=1, max_length=32) = "risk_bar",
+    theta: condecimal(ge=0, le=1, max_digits=8, decimal_places=6) = 0.2,
+    top_n: conint(ge=1, le=100) = 20,
+    dpi: conint(ge=72, le=600) = 200,
+    image_format: constr(strip_whitespace=True, min_length=3, max_length=4) = "png",
+) -> VisualizationImageResponse:
+    """导出指定数据集最新隐性风险静态图。
+
+    Args:
+        dataset_code: 数据集编码。
+        chart_type: 图类型，支持 `risk_bar/lr_pic_scatter`。
+        theta: 风险阈值。
+        top_n: 图内展示记录数量上限。
+        dpi: 图像分辨率。
+        image_format: 输出格式，支持 `png/svg`。
+
+    Returns:
+        VisualizationImageResponse: 图像输出元信息。
+    """
+    try:
+        result = export_latest_implicit_risk_image(
+            dataset_code=dataset_code,
+            chart_type=chart_type,
+            theta=float(theta),
+            top_n=top_n,
+            dpi=dpi,
+            image_format=image_format,
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        ) from e
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"导出隐性风险图像失败: {e}",
+        ) from e
+    return VisualizationImageResponse(
+        image_url=result["image_path"],
+        generated_at=result["generated_at"],
+        chart_type=result["chart_type"],
+        image_format=result["image_format"],
+        chart_meta=result["chart_meta"],
+        image_path=result["image_path"],
+    )

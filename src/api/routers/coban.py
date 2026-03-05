@@ -21,6 +21,11 @@ from src.services.coban_detection_service import (
     CobanDetectionRequest,
     CobanDetectionResult,
     detect_coban_confidentiality,
+    export_coban_detections_image,
+    export_coban_run_overview_image,
+    get_coban_detection_evidence_graph,
+    get_coban_run_visualization,
+    list_coban_detections_visualization,
 )
 from src.services.coban_training_service import (
     CobanTrainingRequest,
@@ -170,6 +175,63 @@ class CobanDetectionDetailResponse(BaseModel):
     update_time: Optional[str]
 
 
+class CobanVisualizationRunOverviewResponse(BaseModel):
+    """CoBAn 批次总览可视化响应体。"""
+
+    run_id: str
+    run_name: Optional[str]
+    dataset_name: Optional[str]
+    status: Optional[str]
+    source_type: Optional[str]
+    params: Dict[str, Any]
+    metrics: Dict[str, Any]
+    cards: Dict[str, Any]
+    chart_series: Dict[str, Any]
+    table_rows: List[Dict[str, Any]]
+
+
+class CobanVisualizationDetectionsResponse(BaseModel):
+    """CoBAn 检测列表可视化响应体。"""
+
+    run_id: str
+    total_count: int
+    limit: int
+    offset: int
+    rows: List[Dict[str, Any]]
+    trend: List[Dict[str, Any]]
+
+
+class CobanVisualizationEvidenceGraphResponse(BaseModel):
+    """CoBAn 检测证据图可视化响应体。"""
+
+    run_id: str
+    doc_uid: str
+    doc_name: Optional[str]
+    cards: Dict[str, Any]
+    decision_reason: Optional[str]
+    graph: Dict[str, List[Dict[str, Any]]]
+
+
+class CobanVisualizationImageResponse(BaseModel):
+    """CoBAn 图像导出响应体。
+
+    Notes:
+        `image_path` 为兼容字段，建议优先读取 `image_url`。
+    """
+
+    biz_id: str
+    module_name: str
+    image_url: str
+    generated_at: str
+    chart_type: str
+    image_format: str
+    chart_meta: Dict[str, Any]
+    image_path: Optional[str] = Field(
+        default=None,
+        description="兼容字段，建议改用 image_url。",
+    )
+
+
 @router.post(
     "/train",
     response_model=CobanTrainResponse,
@@ -215,6 +277,7 @@ def train_endpoint(req: CobanTrainRequest) -> CobanTrainResponse:
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"CoBAn 训练失败: {exc}",
         ) from exc
+    # Pydantic BaseModel 可以自动转成 JSON
     return CobanTrainResponse(**result.__dict__)
 
 
@@ -355,4 +418,155 @@ def get_detection_detail(doc_uid: str) -> CobanDetectionDetailResponse:
         decision_reason=row.get("decision_reason"),
         create_time=_safe_datetime_to_iso(row.get("create_time")),
         update_time=_safe_datetime_to_iso(row.get("update_time")),
+    )
+
+
+@router.get(
+    "/visualization/run/{run_id}/overview",
+    response_model=CobanVisualizationRunOverviewResponse,
+    summary="查询 CoBAn 批次可视化总览",
+)
+def get_visualization_run_overview(run_id: str) -> CobanVisualizationRunOverviewResponse:
+    """查询指定训练批次的可视化总览聚合数据。"""
+    try:
+        result = get_coban_run_visualization(run_id=run_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"查询 CoBAn 批次可视化总览失败: {exc}",
+        ) from exc
+    return CobanVisualizationRunOverviewResponse(**result)
+
+
+@router.get(
+    "/visualization/run/{run_id}/detections",
+    response_model=CobanVisualizationDetectionsResponse,
+    summary="分页查询 CoBAn 检测可视化数据",
+)
+def get_visualization_run_detections(
+    run_id: str,
+    limit: conint(ge=1, le=200) = 50,
+    offset: conint(ge=0) = 0,
+    is_confidential: Optional[bool] = None,
+) -> CobanVisualizationDetectionsResponse:
+    """分页读取指定训练批次检测结果，并返回趋势和表格数据。"""
+    try:
+        result = list_coban_detections_visualization(
+            run_id=run_id,
+            limit=limit,
+            offset=offset,
+            is_confidential=is_confidential,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"查询 CoBAn 检测可视化数据失败: {exc}",
+        ) from exc
+    return CobanVisualizationDetectionsResponse(**result)
+
+
+@router.get(
+    "/visualization/detection/{doc_uid}/evidence-graph",
+    response_model=CobanVisualizationEvidenceGraphResponse,
+    summary="查询 CoBAn 检测证据图数据",
+)
+def get_visualization_detection_evidence_graph(
+    doc_uid: str,
+) -> CobanVisualizationEvidenceGraphResponse:
+    """读取指定检测文档的证据图谱节点与边。"""
+    try:
+        result = get_coban_detection_evidence_graph(doc_uid=doc_uid)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"查询 CoBAn 证据图数据失败: {exc}",
+        ) from exc
+    return CobanVisualizationEvidenceGraphResponse(**result)
+
+
+@router.get(
+    "/visualization-images/run/{run_id}/overview",
+    response_model=CobanVisualizationImageResponse,
+    summary="导出 CoBAn 批次总览图像",
+)
+def export_visualization_run_overview_image(
+    run_id: str,
+    chart_type: constr(strip_whitespace=True, min_length=1, max_length=32) = "cluster_distribution",
+    dpi: conint(ge=72, le=600) = 200,
+    image_format: constr(strip_whitespace=True, min_length=3, max_length=4) = "png",
+) -> CobanVisualizationImageResponse:
+    """导出 CoBAn 批次总览静态图。"""
+    try:
+        result = export_coban_run_overview_image(
+            run_id=run_id,
+            chart_type=chart_type,
+            dpi=dpi,
+            image_format=image_format,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"导出 CoBAn 批次总览图像失败: {exc}",
+        ) from exc
+    return CobanVisualizationImageResponse(
+        biz_id=result["biz_id"],
+        module_name=result["module_name"],
+        image_url=result["image_url"],
+        generated_at=result["generated_at"],
+        chart_type=result["chart_type"],
+        image_format=result["image_format"],
+        chart_meta=result["chart_meta"],
+        image_path=result["image_url"],
+    )
+
+
+@router.get(
+    "/visualization-images/run/{run_id}/detections",
+    response_model=CobanVisualizationImageResponse,
+    summary="导出 CoBAn 检测统计图像",
+)
+def export_visualization_run_detections_image(
+    run_id: str,
+    chart_type: constr(strip_whitespace=True, min_length=1, max_length=32) = "score_boxplot",
+    limit: conint(ge=1, le=500) = 200,
+    offset: conint(ge=0) = 0,
+    is_confidential: Optional[bool] = None,
+    dpi: conint(ge=72, le=600) = 200,
+    image_format: constr(strip_whitespace=True, min_length=3, max_length=4) = "png",
+) -> CobanVisualizationImageResponse:
+    """导出 CoBAn 检测列表统计静态图。"""
+    try:
+        result = export_coban_detections_image(
+            run_id=run_id,
+            chart_type=chart_type,
+            limit=limit,
+            offset=offset,
+            is_confidential=is_confidential,
+            dpi=dpi,
+            image_format=image_format,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"导出 CoBAn 检测统计图像失败: {exc}",
+        ) from exc
+    return CobanVisualizationImageResponse(
+        biz_id=result["biz_id"],
+        module_name=result["module_name"],
+        image_url=result["image_url"],
+        generated_at=result["generated_at"],
+        chart_type=result["chart_type"],
+        image_format=result["image_format"],
+        chart_meta=result["chart_meta"],
+        image_path=result["image_url"],
     )
